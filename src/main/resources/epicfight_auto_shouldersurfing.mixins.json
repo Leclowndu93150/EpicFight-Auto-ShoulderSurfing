@@ -4,10 +4,12 @@
   "package": "com.leclowndu93150.epicfight_auto_shouldersurfing.mixin",
   "compatibilityLevel": "JAVA_8",
   "refmap": "epicfight_auto_shouldersurfing.refmap.json",
+  "plugin": "com.leclowndu93150.epicfight_auto_shouldersurfing.MixinPlugin",
   "mixins": [
   ],
   "client": [
-    "LocalPlayerPatchMixin"
+    "LocalPlayerPatchMixin",
+    "OldLocalPlayerPatchMixin"
   ],
   "injectors": {
     "defaultRequire": 1

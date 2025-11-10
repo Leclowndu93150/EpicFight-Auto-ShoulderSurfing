@@ -10,25 +10,80 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import yesman.epicfight.client.world.capabilites.entitypatch.player.AbstractClientPlayerPatch;
 import yesman.epicfight.client.world.capabilites.entitypatch.player.LocalPlayerPatch;
-import yesman.epicfight.config.ClientConfig;
-import yesman.epicfight.world.capabilities.entitypatch.player.PlayerPatch;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 @Mixin(value = LocalPlayerPatch.class, remap = false)
 public abstract class LocalPlayerPatchMixin extends AbstractClientPlayerPatch<LocalPlayer> {
 
     @Inject(method = "toEpicFightMode", at = @At("TAIL"))
     public void onToEpicFightMode(boolean synchronize, CallbackInfo ci) {
-        if (Config.enabled && this.playerMode != PlayerPatch.PlayerMode.VANILLA && 
-            ClientConfig.authSwitchCamera) {
-            ShoulderSurfing.getInstance().changePerspective(Perspective.SHOULDER_SURFING);
+        try {
+            if (!Config.enabled) return;
+            
+            Object currentPlayerMode = getPlayerModeField();
+            Object vanillaMode = getPlayerModeEnum("VANILLA");
+            
+            if (currentPlayerMode != null && vanillaMode != null && currentPlayerMode != vanillaMode && getAuthSwitchCamera()) {
+                ShoulderSurfing.getInstance().changePerspective(Perspective.SHOULDER_SURFING);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     @Inject(method = "toVanillaMode", at = @At("TAIL"))
     public void onToVanillaMode(boolean synchronize, CallbackInfo ci) {
-        if (Config.enabled && this.playerMode != PlayerPatch.PlayerMode.EPICFIGHT && 
-            ClientConfig.authSwitchCamera) {
-            ShoulderSurfing.getInstance().changePerspective(Perspective.FIRST_PERSON);
+        try {
+            if (!Config.enabled) return;
+            
+            Object currentPlayerMode = getPlayerModeField();
+            Object epicfightMode = getPlayerModeEnum("EPICFIGHT");
+            
+            if (currentPlayerMode != null && epicfightMode != null && currentPlayerMode != epicfightMode && getAuthSwitchCamera()) {
+                ShoulderSurfing.getInstance().changePerspective(Perspective.FIRST_PERSON);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
+
+    private Object getPlayerModeField() throws Exception {
+        Field field = this.getClass().getSuperclass().getDeclaredField("playerMode");
+        field.setAccessible(true);
+        return field.get(this);
+    }
+
+    private Object getPlayerModeEnum(String enumName) throws Exception {
+        Class<?> playerPatchClass = Class.forName("yesman.epicfight.world.capabilities.entitypatch.player.PlayerPatch");
+        Class<?>[] declaredClasses = playerPatchClass.getDeclaredClasses();
+        
+        for (Class<?> innerClass : declaredClasses) {
+            if (innerClass.isEnum() && innerClass.getSimpleName().equals("PlayerMode")) {
+                Method valuesMethod = innerClass.getMethod("values");
+                Object[] enumConstants = (Object[]) valuesMethod.invoke(null);
+                
+                for (Object enumConstant : enumConstants) {
+                    if (enumConstant.toString().equals(enumName)) {
+                        return enumConstant;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean getAuthSwitchCamera() throws Exception {
+        Class<?> clientConfigClass = Class.forName("yesman.epicfight.config.ClientConfig");
+        Field field = clientConfigClass.getDeclaredField("authSwitchCamera");
+        field.setAccessible(true);
+        Object value = field.get(null);
+        
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        
+        return false;
     }
 }
