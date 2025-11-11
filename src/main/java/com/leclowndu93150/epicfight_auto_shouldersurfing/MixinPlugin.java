@@ -1,6 +1,7 @@
 package com.leclowndu93150.epicfight_auto_shouldersurfing;
 
 import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.forgespi.language.IModInfo;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
@@ -8,13 +9,19 @@ import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+import java.io.File;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MixinPlugin implements IMixinConfigPlugin {
     private static final String EPICFIGHT_MOD_ID = "epicfight";
     private static final ArtifactVersion VERSION_THRESHOLD = new DefaultArtifactVersion("20.9.7");
+    private static final Pattern EPICFIGHT_JAR_PATTERN = Pattern.compile("epicfight-(?:forge|neoforge)-(\\d+\\.\\d+\\.\\d+(?:\\.\\d+)?)-");
+    
+    private ArtifactVersion cachedVersion = null;
     
     @Override
     public void onLoad(String mixinPackage) {
@@ -35,26 +42,57 @@ public class MixinPlugin implements IMixinConfigPlugin {
         return true;
     }
 
-    private boolean isEpicFightVersionOldOrEqual() {
-        Optional<? extends IModInfo> modInfo = ModList.get().getModContainerById(EPICFIGHT_MOD_ID)
-                .map(container -> container.getModInfo());
-        
-        if (modInfo.isPresent()) {
-            ArtifactVersion version = modInfo.get().getVersion();
-            return version.compareTo(VERSION_THRESHOLD) <= 0;
+    private ArtifactVersion getEpicFightVersion() {
+        if (cachedVersion != null) {
+            return cachedVersion;
         }
-        return false;
+        
+        ModList modList = ModList.get();
+        if (modList != null) {
+            Optional<? extends IModInfo> modInfo = modList.getModContainerById(EPICFIGHT_MOD_ID)
+                    .map(container -> container.getModInfo());
+            
+            if (modInfo.isPresent()) {
+                cachedVersion = modInfo.get().getVersion();
+                return cachedVersion;
+            }
+        }
+        
+        cachedVersion = parseVersionFromModsFolder();
+        System.out.println("EPIC FIGHT VERSION IS " + cachedVersion);
+        return cachedVersion;
+    }
+    
+    private ArtifactVersion parseVersionFromModsFolder() {
+        File modsDir = FMLPaths.MODSDIR.get().toFile();
+        
+        if (!modsDir.exists() || !modsDir.isDirectory()) {
+            return new DefaultArtifactVersion("20.0.0");
+        }
+        
+        File[] jarFiles = modsDir.listFiles((dir, name) -> name.startsWith("epicfight-") && name.endsWith(".jar"));
+        
+        if (jarFiles != null) {
+            for (File jarFile : jarFiles) {
+                Matcher matcher = EPICFIGHT_JAR_PATTERN.matcher(jarFile.getName());
+                if (matcher.find()) {
+                    String versionStr = matcher.group(1);
+                    return new DefaultArtifactVersion(versionStr);
+                }
+            }
+        }
+        
+        return new DefaultArtifactVersion("20.0.0");
+    }
+    
+    private boolean isEpicFightVersionOldOrEqual() {
+        ArtifactVersion version = getEpicFightVersion();
+        return version.compareTo(VERSION_THRESHOLD) <= 0;
     }
 
     private boolean isEpicFightVersionNew() {
-        Optional<? extends IModInfo> modInfo = ModList.get().getModContainerById(EPICFIGHT_MOD_ID)
-                .map(container -> container.getModInfo());
-        
-        if (modInfo.isPresent()) {
-            ArtifactVersion version = modInfo.get().getVersion();
-            return version.compareTo(VERSION_THRESHOLD) > 0;
-        }
-        return false;
+        ArtifactVersion version = getEpicFightVersion();
+        return version.compareTo(VERSION_THRESHOLD) > 0;
     }
 
     @Override

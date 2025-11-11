@@ -25,7 +25,7 @@ public abstract class LocalPlayerPatchMixin extends AbstractClientPlayerPatch<Lo
             Object currentPlayerMode = getPlayerModeField();
             Object vanillaMode = getPlayerModeEnum("VANILLA");
             
-            if (currentPlayerMode != null && vanillaMode != null && currentPlayerMode != vanillaMode && getAuthSwitchCamera()) {
+            if (currentPlayerMode != null && vanillaMode != null && currentPlayerMode != vanillaMode) {
                 ShoulderSurfing.getInstance().changePerspective(Perspective.SHOULDER_SURFING);
             }
         } catch (Exception e) {
@@ -41,7 +41,7 @@ public abstract class LocalPlayerPatchMixin extends AbstractClientPlayerPatch<Lo
             Object currentPlayerMode = getPlayerModeField();
             Object epicfightMode = getPlayerModeEnum("EPICFIGHT");
             
-            if (currentPlayerMode != null && epicfightMode != null && currentPlayerMode != epicfightMode && getAuthSwitchCamera()) {
+            if (currentPlayerMode != null && epicfightMode != null && currentPlayerMode != epicfightMode) {
                 ShoulderSurfing.getInstance().changePerspective(Perspective.FIRST_PERSON);
             }
         } catch (Exception e) {
@@ -50,7 +50,8 @@ public abstract class LocalPlayerPatchMixin extends AbstractClientPlayerPatch<Lo
     }
 
     private Object getPlayerModeField() throws Exception {
-        Field field = this.getClass().getSuperclass().getDeclaredField("playerMode");
+        Class<?> playerPatchClass = Class.forName("yesman.epicfight.world.capabilities.entitypatch.player.PlayerPatch");
+        Field field = playerPatchClass.getDeclaredField("playerMode");
         field.setAccessible(true);
         return field.get(this);
     }
@@ -74,16 +75,4 @@ public abstract class LocalPlayerPatchMixin extends AbstractClientPlayerPatch<Lo
         return null;
     }
 
-    private boolean getAuthSwitchCamera() throws Exception {
-        Class<?> clientConfigClass = Class.forName("yesman.epicfight.config.ClientConfig");
-        Field field = clientConfigClass.getDeclaredField("authSwitchCamera");
-        field.setAccessible(true);
-        Object value = field.get(null);
-        
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        
-        return false;
-    }
 }
